@@ -1,5 +1,5 @@
 import 'package:path/path.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 const String contactTable = "contactTable";
 const String idColumn = "idColumn";
@@ -27,14 +27,19 @@ class ContactHelper {
   }
 
   Future<Database> initDb() async {
-    final databasesPath = await getDatabasesPath();
+    var databaseFactory = databaseFactoryFfi;
+
+    final databasesPath = await databaseFactory.getDatabasesPath();
     final path = join(databasesPath, "contactsnew.db");
 
-    return await openDatabase(path, version: 1,
-        onCreate: (Database db, int newerVersion) async {
-      await db.execute(
-          "CREATE TABLE IF NOT EXISTS $contactTable($idColumn INTEGER PRIMARY KEY AUTOINCREMENT, $nameColumn TEXT, $emailColumn TEXT, $phoneColumn TEXT, $imgColumn TEXT)");
-    });
+    return await databaseFactory.openDatabase(path,
+        options: OpenDatabaseOptions(
+          version: 1,
+          onCreate: (db, version) async {
+            await db.execute(
+                "CREATE TABLE IF NOT EXISTS $contactTable($idColumn INTEGER PRIMARY KEY AUTOINCREMENT, $nameColumn TEXT, $emailColumn TEXT, $phoneColumn TEXT, $imgColumn TEXT)");
+          },
+        ));
   }
 
   Future<Contact> saveContact(Contact contact) async {
@@ -87,13 +92,7 @@ class ContactHelper {
     return listContact;
   }
 
-  Future<int?> getNumber() async {
-    //fecha o banco de dados
-    Database? dbContact = await db;
-    return Sqflite.firstIntValue(
-        await dbContact!.rawQuery("SELECT COUNT(*) FROM $contactTable"));
-  }
-
+  //fecha o banco de dados
   Future close() async {
     Database? dbContact = await db;
     dbContact!.close();

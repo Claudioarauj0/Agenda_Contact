@@ -2,6 +2,9 @@ import 'dart:io';
 import 'package:agenda_de_contatos/helpers/contact-helper.dart';
 import 'package:agenda_de_contatos/ui/contact_page.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+enum OrdenOptions { orderaz, ordeza }
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -28,6 +31,21 @@ class HomePageState extends State<HomePage> {
         title: const Text("CONTATOS"),
         centerTitle: true,
         backgroundColor: Colors.red,
+        actions: [
+          PopupMenuButton(
+            itemBuilder: (context) => <PopupMenuEntry<OrdenOptions>>[
+              const PopupMenuItem(
+                value: OrdenOptions.orderaz,
+                child: Text("ordernar de A-Z"),
+              ),
+              const PopupMenuItem(
+                value: OrdenOptions.ordeza,
+                child: Text("ordernar de Z-A"),
+              ),
+            ],
+            onSelected: _orderList,
+          )
+        ],
       ),
       backgroundColor: Colors.white,
       floatingActionButton: FloatingActionButton(
@@ -63,7 +81,8 @@ class HomePageState extends State<HomePage> {
                       image: contacts[index].img != null
                           ? FileImage(File(contacts[index].img!))
                           : const AssetImage("images/person.png")
-                              as ImageProvider),
+                              as ImageProvider,
+                      fit: BoxFit.cover),
                 ),
               ),
               Padding(
@@ -100,7 +119,60 @@ class HomePageState extends State<HomePage> {
         ),
       ),
       onTap: () {
-        _showContactPage(contact: contacts[index]);
+        _showOptions(context, index);
+      },
+    );
+  }
+
+  void _showOptions(BuildContext context, int index) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return BottomSheet(
+          builder: (context) {
+            return Container(
+              padding: EdgeInsets.all(10.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton(
+                    child: const Text(
+                      "Ligar",
+                      style: TextStyle(color: Colors.red, fontSize: 20.0),
+                    ),
+                    onPressed: () {
+                      launchUrl(Uri.parse("tel:${contacts[index].phone}"));
+                    },
+                  ),
+                  TextButton(
+                    child: const Text(
+                      "Editar",
+                      style: TextStyle(color: Colors.red, fontSize: 20.0),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _showContactPage(contact: contacts[index]);
+                    },
+                  ),
+                  TextButton(
+                    child: const Text(
+                      "Excluir",
+                      style: TextStyle(color: Colors.red, fontSize: 20.0),
+                    ),
+                    onPressed: () {
+                      helper.deleteContact(contacts[index].id!);
+                      setState(() {
+                        Navigator.pop(context);
+                        contacts.removeAt(index);
+                      });
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+          onClosing: () {},
+        );
       },
     );
   }
@@ -109,7 +181,7 @@ class HomePageState extends State<HomePage> {
     final recContact = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ContactPage(contact: Contact()),
+        builder: (context) => ContactPage(contact: contact ?? Contact()),
       ),
     );
     if (recContact != null) {
@@ -122,9 +194,27 @@ class HomePageState extends State<HomePage> {
     }
   }
 
-  void _getAllContacts() {
+  Future<void> _getAllContacts() async {
+    var c = await helper.getAllContacts();
+
     setState(() {
-      helper.getAllContacts().then((list) => contacts = list);
+      contacts = c;
     });
   }
+
+  void _orderList(OrdenOptions result) {
+    switch (result) {
+      case OrdenOptions.orderaz:
+        contacts.sort((a, b) {
+          return a.name!.toLowerCase().compareTo(b.name!.toLowerCase());
+        });
+        break;
+      case OrdenOptions.ordeza:
+        contacts.sort((a, b) {
+          return b.name!.toLowerCase().compareTo(a.name!.toLowerCase());
+        });
+        break;
+    }
+    setState(() {});
+  } //fecha o _orderList
 }
